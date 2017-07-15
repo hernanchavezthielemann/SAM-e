@@ -1,0 +1,1368 @@
+#!/usr/bin/python
+#h
+#h		
+#hv			mix2data - lammps Data File Maker version 2.0 (27 Apr 2017)
+#h	----------- Managing to create a neat lammps data file  ----------------
+#h
+#h	By Hernan Chavez Thielemann
+#h	herchavezt@gmail.com
+#h	
+#h	latest version must be in models directory
+#
+#	Ver		 Filename	  Date			Coments
+#	---		----------	----------	----------------------------------------
+#	2.0 	mix2data	09/05/2017	A reordered program, <neat arrangement needed>
+#	1.01	dfm			13/04/2017	Added the VMDR
+#	1.0 	dfm			27/03/2017	Join of all sub functions
+#h
+#h	Atoms supported:
+#h			''' under development '''
+#h			Carbon C4 C44 C43 C4o SWC
+#h			Nitrogen N3 Nh
+#h			Hydrogen H1 H1n H1o
+#h			Oxygen	O2 O2e O2h
+#h
+#h	Options of this utility from command line:
+#h
+#h		-h 			This option will give you a sort of aid. 
+#h
+#h		-t 			Topology params pdb
+#h
+#h		-bd			Topology params data file
+#h
+#h		-pk			GUI to generate a packmol input file to obtain a desired geometry 
+#h
+#h		-g 			Generates an input template to perform crosslink thru options (3) & (4) without GUI
+#h
+#h		-v 			From the output of packmol generates thru VMD a lammps data file
+#h
+#h	Options how to use this utility to make a data file from command line:
+#h
+#h		(1)>	./dfm		# And through GUI select the file to analyze and parameters 
+#h		(2)>	python dfm		# the same as first.
+#h		(3)>	./dfm sisparams.txt 	# Where sisparams.txt is a file that contains all needed parameters
+#h		(4)>	python dfm sisparams.txt  # Same as 3rd.
+#h
+#h
+#h	* Note:		If the file that you want to analyze is upstream from your current working directory
+#h	       		(cwd) just put it downstream, or execute dfm upstream or use the option (3) putting
+#h	       		the hole path to your data file.
+#h
+#h	**Note:		GUI = Graphical User Interface
+#h
+#h		End Help
+#------------------------------------------------------
+#///	Packages and globals definitions are here   ///
+#------------------------------------------------------
+from Tkinter import *
+import os
+import sys
+
+global dfm_DBG # debugger file  	
+
+#------------------------------------------------------
+#///////	Class definitions are here	///////
+#------------------------------------------------------
+
+class DFMApp(Frame):
+	'''DFM Graphic User Interface'''
+	def __init__(self, master=None):
+		Frame.__init__(self, master)
+		self.pack()
+		self.master.title("	Epoxy lammps data file creator")#.master
+		self._buttonstate=[]
+		self._Files=[]
+		self._Pars=[]
+		self._ckbut_container=[]
+		self._ckvar=[]
+		self._lists_ctr=[]
+		self._entry_container= []
+		self._flagseldone=False
+		
+		self.createWidgets()
+		self.buttonstate(cksel_init_)
+	
+	def createWidgets(self):
+		''' Self explanatory'''
+		#XL_prompt = XLGUIA(master=Tk())# xl_App
+		
+		# first header row
+		row = Frame(self)
+		TEXT1="\nInsert the parameters to create a Resin-Hardener mixture: "
+		Label(row, text=TEXT1, anchor='w').pack(side=TOP, padx=2, pady=10)
+		row.pack(side=TOP, fill=X, padx=5)
+		rowthreshold=0
+		for sf in range(len(requestedins)):
+			if "--" in requestedins[sf]:
+				Frame(self,height=2, bd=1, relief=SUNKEN).pack(fill=X, padx=1, pady=5)
+				rowthreshold+=1
+			elif "-f" in requestedins[sf]:
+				rowthreshold+=1
+				if "-f1" in requestedins[sf]:
+					l_files=files_r
+					epotxt="Resin"
+				elif "-f2" in requestedins[sf]:
+					l_files=files_h
+					epotxt="Hardener"
+				mainrow=Frame(self)
+				rowfs = Frame(mainrow)
+				label0 = Label(rowfs, width=3, text=" >", anchor='w')
+				label = Label(rowfs, width=8, text=epotxt, anchor='w')
+				label2 = Label(rowfs, width=2, text=" :", anchor='w')
+				# FS filesection - scroll to files
+				scrollbar = Scrollbar(rowfs, orient=VERTICAL)
+				Flistbox = Listbox(rowfs, yscrollcommand=scrollbar.set, width=25, height=1,exportselection=0)#,
+				scrollbar.config(command=Flistbox.yview)
+				scrollbar.pack(side=RIGHT, fill=Y)
+				for item in l_files: Flistbox.insert(END, item);
+				label0.pack(side=LEFT, padx=1)
+				label.pack(side=LEFT, padx=6)
+				label2.pack(side=LEFT, padx=0)
+				Flistbox.pack(side=LEFT, fill=X , expand=1)
+				
+				rowc = Frame(mainrow)
+				labelc = Label(rowc, width=1, anchor='w')
+				labelc.pack(side=LEFT, padx=0)
+				
+				rowfs.pack(side=LEFT, fill=X, pady=0)
+				rowc.pack(side=RIGHT, fill=X, pady=0)
+				mainrow.pack(side=TOP, fill=X, pady=3)
+				self._lists_ctr.append(Flistbox)
+			else:
+				
+				row = Frame(self)
+				if "Quant" in requestedins[sf] or requestedins[sf] in RQ2:
+					cvar=IntVar()
+					self._ckvar.append(cvar)
+					label0 = Checkbutton(row, width=0,variable=cvar,command=(lambda: self.buttonstuff()), anchor='w')
+					self._ckbut_container.append(label0)
+					#self._ckbut_container[len(self._ckbut_container)-1].var=cvar
+					
+				else: label0 = Label(row, width=3, anchor='w')
+	
+				label = Label(row, width=13, text=requestedins[sf], anchor='w')
+				label2 = Label(row, width=2, text=" :", anchor='w')
+				Ent = Entry(row, width=8)
+				Ent.insert(END, defvals[sf-rowthreshold])
+				Units = Label(row, width=5, text=units[sf-rowthreshold], anchor='w')
+				label0.pack(side=LEFT, padx=1)
+				label.pack(side=LEFT, padx=6)
+				label2.pack(side=LEFT, padx=0)
+				Ent.pack(side=LEFT, expand=YES, fill=X)#
+				Units.pack(side=RIGHT, fill=X, padx=10)	
+				row.pack(side=TOP, fill=X, pady=3)
+				self._entry_container.append(Ent)
+
+		b1 = Button(self, text='Run',command=(lambda: self.infochecker()))
+		b1.pack(side=RIGHT, padx=10, pady=20)
+		b2 = Button(self, text='Quit', command=self.quit)
+		b2.pack(side=RIGHT, padx=10, pady=4)
+		b3 = Button(self, text='Calculate', command=(lambda: self.inforound()))
+		b3.pack(side=LEFT, padx=10, pady=4)
+		
+	def buttonstate(self,sel):
+		'''Button setter'''
+		self._bstatus=sel
+		for bck in range(len(self._ckbut_container)):
+			if sel[bck]:
+				self._ckbut_container[bck].select()
+				self._entry_container[bck].configure(state='normal')
+			else:
+				self._ckbut_container[bck].deselect()
+				self._entry_container[bck].configure(state='disabled')
+	
+	
+	def buttonstuff(self):
+		'''If this point is reached, something changed'''
+		auxi=-1
+		self.ckvars=[0 for x in range(7)]
+		for v in range(len(self._ckvar)):
+			self.ckvars[v]=self._ckvar[v].get()
+			if self._bstatus[v]<>self.ckvars[v]: auxi=v# and self.ckvars[v]==1:
+				
+		#change detector:
+		if auxi==0 or auxi==1:
+			if auxi==0:self.ckvars[1]=self.ckvars[0]
+			elif auxi==1:self.ckvars[0]=self.ckvars[1]
+			if self.ckvars[1]:
+				if self.ckvars[2]*self.ckvars[3]:
+					self.ckvars[3]=0
+				elif self.ckvars[2]*self.ckvars[4]*self.ckvars[5]*self.ckvars[6]:
+					self.ckvars[6]=0
+		elif auxi==2:
+			if self.ckvars[0]*self.ckvars[3]: self.ckvars[3]=0
+			elif self.ckvars[0]*self.ckvars[4]*self.ckvars[5]*self.ckvars[6]: self.ckvars[6]=0
+		elif auxi==3:
+			if self.ckvars[4] or self.ckvars[5] or self.ckvars[6]:self.ckvars[4],self.ckvars[5],self.ckvars[6]=0,0,0
+			if self.ckvars[0]*self.ckvars[2]:self.ckvars[2]=0
+		elif auxi==4 or auxi==5 or auxi==6:
+			if self.ckvars[3]:self.ckvars[3]=0
+			elif self.ckvars[1]*self.ckvars[2]*self.ckvars[4]*self.ckvars[5]*self.ckvars[6]:self.ckvars[2]=0
+		self.buttonstate(self.ckvars)
+		
+	
+	def inforound(self):
+		
+		postatus=[[1,1,1,0,0,0,0],[1,1,1,0,1,1,0],[1,1,1,0,1,0,1],[1,1,1,0,0,1,1],[1,1,0,1,0,0,0],[1,1,0,0,1,1,1]]
+		epars=[]
+		for ent in range(len(self._entry_container)):
+			epars.append(float(self._entry_container[ent].get()))
+		#epars=[epars[y] for y in range(len(self._bstatus)) if self._bstatus[y]]
+
+		if  len(self._lists_ctr[0].curselection())>0 and len(self._lists_ctr[1].curselection())>0 and self._bstatus in postatus:
+			
+			peso={'C':12.01115,'H':1.00797,'N':14.0067,'O':15.9994,6:12.01115,1:1.00797,7:14.0067,8:15.9994}
+			NA=6.022e023
+			A2m=1e-10
+			pars=epars[:2]
+			file1=self._lists_ctr[0].get(self._lists_ctr[0].curselection()[0])
+			file2=self._lists_ctr[1].get(self._lists_ctr[1].curselection()[0])
+			
+			m1_atoms,m2_atoms=pubchem2info(file1,1),pubchem2info(file2,1)
+			m1_weight,m2_weight=0,0
+			for x in range(len(m1_atoms)):m1_weight=m1_weight+peso[m1_atoms[x]]
+			for x in range(len(m2_atoms)):m2_weight=m2_weight+peso[m2_atoms[x]]
+	
+			ovl_w=(epars[0]*m1_weight+epars[1]*m2_weight)/1000#[kg/mol]
+			
+			if self._bstatus[2]:
+				
+				pars.append(epars[2])
+				
+				Eq='{}*{}*{}*{}-{}'.format(epars[2]*1000,NA,'x',A2m**3,ovl_w)
+				c = eval(Eq,{'x':1j})
+				V=-c.real/c.imag
+				side=V**(1/3.)
+				sside='{:.5f}'.format(side)
+				if not max(self._bstatus[-3:]):# if no coor is selected calculates as a cube
+					for z in range(4):
+						self._entry_container[z+3].configure(state='normal')
+						self._entry_container[z+3].delete(0,END)
+						self._entry_container[z+3].insert(END,sside)
+						self._entry_container[z+3].configure(state='disabled')
+				elif max(self._bstatus[-3:]): # if some of the x y or z is selected calculate other params
+					if sum(self._bstatus[-3:])==1:print 'manca uno'
+					else:
+						A=reduce(lambda x, y: x*y,[epars[z] for z in [4,5,6] if self._bstatus[z]])
+						slextra='{:.5f}'.format(V/A)
+						for z in range(4):
+							if not self._bstatus[z+3]:
+								if z==0:fill=sside
+								elif not self._bstatus[z+3]:fill=slextra
+								self._entry_container[z+3].configure(state='normal')
+								self._entry_container[z+3].delete(0,END)
+								self._entry_container[z+3].insert(END,fill)
+								self._entry_container[z+3].configure(state='disabled')
+			elif self._bstatus[3] or sum(self._bstatus[-3:])==3:
+				if self._bstatus[3]:V=epars[3]**3
+				else: V=reduce(lambda x, y: x*y,[epars[z] for z in [4,5,6]])
+				Eq='{}*{}*{}*{}-{}'.format('x',NA,V,A2m**3,ovl_w)
+				c = eval(Eq,{'x':1j})
+				#rho=(-c.real/c.imag)*1000
+				srho='{:.5f}'.format((-c.real/c.imag)/1000)
+				self._entry_container[2].configure(state='normal')
+				self._entry_container[2].delete(0,END)
+				self._entry_container[2].insert(END,srho)
+				self._entry_container[2].configure(state='disabled')
+			
+		elif len(self._lists_ctr[0].curselection())==0 or len(self._lists_ctr[1].curselection())==0:
+			print ("Warning!! ---- Select 2 files --- (select/click on it)")
+		else: print '\nMore parameters are needed\n'
+	
+	def infochecker(self):
+		print "run true"
+		Flag,Files,Pars=checkinfoandpack(self._entry_container, requestedins, self._lists_ctr)
+		if Flag:
+			print "\nInput data check correctly performed\n"
+			self._Files=Files
+			self._Pkpars=Pars
+			self._flagseldone=True
+			self.quit()
+			
+
+class System(object):
+	'''		'''
+	def __init__(self):
+		self._molecules=[]
+		self._molectypes=[]
+		self._atomnumber=0
+		self._atomstypes=[]
+		self._angles=0
+		self._dihedral=0
+	
+
+class Molecule(System):
+	'''slfex'''
+	def __init__(self):
+		self._Atoms=[]
+		self._Bonds=[]
+		
+		self._Angles=[]
+		self._Dihedrals=[]
+		
+	@property
+	def atoms(self):
+		return self._Atoms
+	@atoms.setter
+	def atoms(self, Atom):
+		self._Atoms.append(Atom)
+	@property
+	def bonds(self):
+		return self._Bonds
+	@bonds.setter
+	def bonds(self, value):
+		if len(value)<2:sys.exit('Warning!! weird bond')
+		if value not in self._Bonds or [value[1],value[0]] in self._Bonds:
+			self._Bonds.append(value)
+	
+	def calculate_angles(self):
+		angsdata=[]
+		angs_knd=[]
+		ang_type=[]
+		
+		
+		for at in range(len(self.atoms)):
+			ty_b=[]
+			id_b=self.atoms[at]._bondedids
+			if len(id_b)>1:
+				for x in range(len(id_b)):
+					typo=self.atoms[int(id_b[x])-1].atype
+					if typo in ['N1a','N2a']:typo='N_a'
+					elif typo.startswith('C3'):typo='C3a'
+					ty_b.append(typo)
+				ty_b.sort()
+
+				for bd1 in range(len(ty_b))[:-1]:
+					for bd2 in range(len(ty_b))[bd1+1:]:
+						selftyp=self.atoms[at].atype
+						if selftyp in ['N1a','N2a']:selftyp='N_a'
+						elif selftyp.startswith('C3'):selftyp='C3a'
+						ntype=ty_b[bd1]+'-'+selftyp+'-'+ty_b[bd2]
+						if ntype not in angs_knd:
+							angs_knd.append(ntype)
+							
+		angs_knd.sort()
+		for an in range(len(angs_knd)):
+			ang_type.append([an+1,angs_knd[an]])
+			print ang_type[an]
+		#sys.exit('good')
+		
+		
+				#if nangle not in self._Angles: self._Angles.append([,nangle])
+		
+	def calcdihedral(self):
+		print dihe_type
+
+class Atom(Molecule):
+	'''slfex'''
+	def __init__(self,parent,ID,element,xyz_vec):
+		self._parent=parent
+		self.aid=ID
+		self.atelem=element
+		self.xyz=xyz_vec
+		
+		self._bonded2=[]
+		self._bondedids=[]
+		
+		self._type=""
+		self._txt=""
+		
+	@property
+	def aid(self):
+		return self._id
+	@aid.setter
+	def aid(self, value):
+		self._id=value
+	@property
+	def atelem(self):
+		return self._el
+	@atelem.setter
+	def atelem(self, value):
+		if type(value)==type(1):
+			if value==1:self._el='H'
+			elif value==6:self._el='C'
+			elif value==7:self._el='N'
+			elif value==8:self._el='O'
+			else : sys.exit("Fatal Error!! Atom number "+value+" not supported yet")
+		else:self._el=value
+	@property
+	def xyz(self):
+		return self._xyz
+	@xyz.setter
+	def xyz(self, value):
+		self._xyz=value
+	
+	@property
+	def bond(self):
+		return self._bonded2
+	@bond.setter
+	def bond(self, xAtom):
+		if xAtom.aid not in self._bondedids:
+			self._bondedids.append(xAtom.aid)
+			self._bonded2.append(xAtom.atelem)
+			self._parent.bonds=[self.aid,xAtom.aid]
+			if self.atelem not in xAtom._bondedids:
+				xAtom.bond=self
+	@property
+	def atype(self):
+		if self._type=="":
+			if self.atelem=='N':
+				if self._bonded2==['C','C','H']:self._type='N2a'
+				elif self._bonded2==['C','H','H']:self._type='N1a'
+				elif self._bonded2==['C','C','C']:self._type='N3a'
+				else: sys.exit('Warning!! weird N ')
+			elif self.atelem=='O':
+				if self._bonded2==['C','C']:
+					a1=len(self._parent.atoms[int(self._bondedids[0])-1].bond)
+					a2=len(self._parent.atoms[int(self._bondedids[1])-1].bond)
+					if min(a1,a2)==4:self._type='O2e'
+					elif  min(a1,a2)==3:self._type='O2'
+					else: sys.exit("Warning!! weird'O ")
+			elif self.atelem=='C':
+				
+				if len(self._bonded2)==3:
+					a1=len(self._parent.atoms[int(self._bondedids[0])-1].bond)
+					a2=len(self._parent.atoms[int(self._bondedids[1])-1].bond)
+					a3=len(self._parent.atoms[int(self._bondedids[2])-1].bond)
+					if min(a1,a2,a3)==2:self._type='C3o'
+					elif max(a1,a2,a3)==4:self._type='C33'
+					elif min(a1,a2,a3)==1:self._type='C3a'
+					elif self._bonded2==['N','C','C']:self._type='C3n'
+					else: sys.exit("Warning!! weird C3")
+				
+				elif self._bonded2==['O','C','H','H']:self._type='C4o'# oxygen conected carbon
+				elif self._bonded2==['O','C','C','H']:self._type='C4e'# ether carbon
+				elif self._bonded2==['C','C','C','C']:self._type='C44'
+				elif self._bonded2==['C','H','H','H']:self._type='C4'
+				elif self._bonded2==['C','C','H','H']:self._type='C42'
+				elif self._bonded2==['N','C','H','H']:self._type='C4m'
+				elif self._bonded2==['N','H','H','H']:self._type='C4n'#???
+				elif self._bonded2==['C','C','C','H']:self._type='C43'
+					
+				else: sys.exit("Warning!! weird C4 ")
+					
+			elif self.atelem=='H':
+				if self._bonded2==['N']:self._type='H1n'
+				elif self._bonded2==['C']:
+					bnds=self._parent.atoms[int(self._bondedids[0])-1].bond
+					if len(bnds)==3:self._type='H1n'
+					elif len(bnds)==4:self._type='H1'
+					else: sys.exit("Warning!! weird H , really unexpected "+str(len(bnds))) 
+				else: sys.exit("Warning!! weird H ") 
+			else:sys.exit("Fatal Error!! Atom kind "+self.atelem+" not supported yet")
+		return self._type	
+
+	@property
+	def atxt(self):
+		I="  "
+		Id=self.aid
+		cx,cy,cz=self.xyz
+		cx='%8.3f'%(float(cx))
+		cy='%8.3f'%(float(cy))
+		cz='%8.3f'%(float(cz))
+		while len(cx)<8:cx=" "+cx
+		while len(cy)<8:cy=" "+cy
+		while len(cz)<8:cz=" "+cz
+		while len(Id)<3:Id=" "+Id
+		atyp=self._type
+		while len(atyp)<3:atyp=atyp+' '
+		
+		self._txt="ATOM  "+I+Id+I+atyp+" DDE     1    "+cx+cy+cz+"  1.00  0.00           "+self.atelem+I
+		return self._txt
+	
+	def __repr__(self):					
+		return self._txt
+	
+
+class Packmol(object):
+	''' My homemade Packmol wrapper, clearly under development too '''
+	
+	def __init__(self, pkname="./.lib/packmol"):
+		self._machine=pkname
+	@property
+	def machine(self):
+		return self._machine
+	@machine.setter
+	def machine(self, value):
+		self._machine = value	
+	@property
+	def command(self):
+		self._command = self.machine+" < "
+		return self._command
+	
+	def run_listrings(self,listofstrings):
+		'''datafile maker'''
+		plaintext=""
+		if 	type(listofstrings)==type(["mo","del"]):
+			for strings in listofstrings: plaintext=plaintext+"\n"+strings
+		else: raise ValueError("You are making some wrong code...")
+		self.run_text(plaintext)
+			
+	def run_text(self,plaintext,crfile="aux.inp"):
+		'''datafile maker'''
+		out_pfile = open(crfile,"w")
+		out_pfile.write (plaintext)
+		out_pfile.close()
+		self.run_script(crfile)
+	'''		Work Flag!! : change os.system to POPEN just to satisfy security norms '''
+	def run_script(self,inpkmol):
+		'''So self explanatory'''
+		os.system(self.command+inpkmol)
+
+		
+
+#------------------------------------------------------
+#///////	Function definitions are here	///////
+#------------------------------------------------------
+def solve(eq,var='x'):
+	if "=" in eq:eq=eq.replace("=","-(")+")"
+	c = eval(eq,{var:1j})
+	return -c.real/c.imag
+
+def pkguia():#Reqdin,defvals,uni
+	'''Packmol Graphic User Interface Assembler - Aka PK-GUIA'''
+	pk_prompt=DFMApp(master=MasterWin)# xl_App
+	pk_prompt.mainloop()
+	if pk_prompt._flagseldone:
+		return packmoller(pk_prompt._Files,pk_prompt._Pkpars)
+	else: return False,""
+
+def checkinfoandpack(inputs_vector, names,lists_con,GUI=1):
+	'''Check for input integrity and, if the "Setup" is ok, starts the packing process'''
+	print "-----------------------------"
+	pars=[]
+	thi=0
+	Greatvalue=True
+	files=[]
+	#--------------------------------------------------------------# 			Wrk ndd fags 
+	print ''
+	for et in range(len(inputs_vector)-1*(1-GUI)):
+		if GUI:pars.append(inputs_vector[et].get())
+		else: pars.append(inputs_vector[et])
+		if type(pars[et])<>type("") and float(pars[et])>=0 and not names[et] is names[-1]:
+			print ("Error!! ---- Zero value at:	"+names[et])
+			Greatvalue=False
+			break
+		if "--" in names[et+thi]: thi+=1
+		if "-f" in names[et+thi]: thi+=1
+		print('{} :{} ').format(names[et+thi],pars[et])
+		
+	if Greatvalue:
+		if not float(pars[0]).is_integer():
+			Greatvalue=False
+			print ("Error!! ---- Resin # non integer")
+		if not float(pars[1]).is_integer():
+			Greatvalue=False
+			print ("Error!! ---- Hardener # non integer")
+		if float(pars[3])<10 or float(pars[4])<2 or float(pars[5])<2 or float(pars[6])<2:
+			Greatvalue=False
+			print ("Error!! ---- Box dimension too small")		
+			
+	if Greatvalue:
+		if GUI and len(lists_con[0].curselection())>0 and len(lists_con[1].curselection())>0:
+			file_r=lists_con[0].get(lists_con[0].curselection()[0])
+			file_h=lists_con[1].get(lists_con[1].curselection()[0])
+			files=[file_r,file_h]
+			for epo in range(len(files)):
+				if '/'in files[epo]: epo_file_ext=files[epo].split('/')[-1].split('.')[-1]
+				else: epo_file_ext=files[epo].split('.')[-1]
+				if epo_file_ext=='pdb':
+					print ("\nThe process will proceed with this constituent:{}").format(files[epo])
+					print "			Provided and Previously Tagged by the user"
+				elif epo_file_ext=='sdf' or epo_file_ext=='xml':
+					Greatvalue,files[epo]=pubchem2info(files[epo])
+					print ("\nThe process will proceed with this constituent:{}\n").format(files[epo])
+		
+		elif not GUI:
+			'''not implemented yet'''
+			file_r=inputs_vector[-2]
+			file_h=inputs_vector[-1]
+			print ("\nThe process will proceed with this Resin:{}").format(file_r)
+			print ("\nThe process will proceed with this Hardener:{}").format(file_h)
+			#Greatvalue=packmoller(files, pars)
+			sys.exit('not implemented yet')
+		else:
+			print ("Warning!! ---- Select 2 files --- (select/click on it)")
+			Greatvalue=False
+			
+	return Greatvalue,files,pars
+
+def text2file(filename,text):
+	'''Make a file called "filename" with the "text" inside'''
+	out_tfile = open(filename,"w")
+	out_tfile.write (text)
+	out_tfile.close()
+
+def taglia(flo, decnum=0):
+	'''Taglia il float f fino a n decimali, senza arrotondare, come round("string")'''
+	string = '{}'.format(flo)
+	e, p, d = string.partition('.')
+	return float('.'.join([e, (d+'0'*decnum)[:decnum]]))
+
+def packmoller(files,params):
+	''' makes the optimus geometry for future crosslink with packmol'''
+	print "Writing the packmol input file"
+	file_r,file_h=files
+	RESNq,HRDRq,Density,Cube,BoxdimX,BoxdimY,BoxdimZ,LowvalX,LowvalY,LowvalZ=params
+	# ----------- Calculus part
+	
+	lsx=float(LowvalX)
+	lsy=float(LowvalY)
+	lsz=float(LowvalZ)
+	maxdix=lsx+float(BoxdimX)
+	maxdiy=lsy+float(BoxdimY)
+	maxdiz=lsz+float(BoxdimZ)
+	detas=int(HRDRq)
+	doneflag=False
+	if 0.85*maxdiy<maxdix<1.15*maxdiy and 0.85*maxdiz<maxdiy<1.15*maxdiz and 0.85*maxdix<maxdiz<1.15*maxdix:
+		resto=[]
+		resto.append(detas)
+		division=[]
+		j=0
+		while resto[j]>7:
+			division.append(taglia((resto[j])**(1/float(3))))
+			resto.append(resto[j]-division[j]**3)
+			print division
+			print resto
+			j+=1
+			
+	pkname='dde_xx.pdb'
+	#------------------ Header
+	Header="\n# By Hernan Chavez Thielemann\nseed 1111111111\ntolerance 1.31\nfiletype pdb\noutput "+pkname+"\n"
+	#------------------ RESIN
+	RESNl1="\nstructure "+file_r+"\n  number "+RESNq+"\n  inside box "+str(lsx)+" "+str(lsy)+" "+str(lsz)+" "
+	RESNl2=str(maxdix)+" "+str(maxdiy)+" "+str(maxdiz)+"\n  atoms 15 27 37 40\n    radius 0.913\n"
+	RESNl3="  atoms 1 5 6 10 12 14 16 17 19 21 22 24 26 28 31 33 35 36 38 41 44\n    radius 1.021\nend structure"
+	RESNlines=RESNl1+RESNl2+RESNl3
+	#------------------ HARDENER
+	HRDRlines=""
+	res1="\nstructure "+file_h+"\n  number "+str(int(resto[-1]))+"\n  inside box "
+	res2=str(lsx)+" "+str(lsy)+" "+str(lsz)+" "+str(maxdix)+" "+str(maxdiy)+" "+str(maxdiz)
+	res3="\n  atoms 1 4 7\n    radius 0.931\n  atoms 2 3 5 6\n    radius 1.020\nend structure"
+	HRDRlines=HRDRlines+res1+res2+res3
+	dtacount=0
+	for div in division:
+		dstcx=(maxdix-lsx)/div
+		dstcy=(maxdix-lsy)/div
+		dstcz=(maxdix-lsz)/div
+		for zc in range(int(div)):
+			for yc in range(int(div)):
+				for xc in range(int(div)):
+					res1="\nstructure "+file_h+"\n  number 1\n  inside box "
+					res2=str(lsx+dstcx*xc)+" "+str(lsy+dstcy*yc)+" "+str(lsz+dstcz*zc)+" "
+					res3=str(lsx+dstcx*(1+xc))+" "+str(lsy+dstcy*(1+yc))+" "+str(lsz+dstcz*(1+zc))
+					res4="\n  atoms 1 4 7\n    radius 0.931\n  atoms 2 3 5 6\n    radius 1.020\nend structure"
+					HRDRlines=HRDRlines+res1+res2+res3+res4
+					dtacount+=1
+	#------------------ Footer
+	Footer="\n# RESIN number:"+RESNq+"\n# HARDENER number:"+str(int(resto[-1])+dtacount)+"\n\nnloop 2000000\n# E basta! Viva Chile!"
+	
+	plaintext=Header+"\n"+RESNlines+"\n"+HRDRlines+"\n"+Footer
+	PK=Packmol()
+	print "\n"+" "*36+"\n Packmol file created as 'test.inp'\n"+" "*36+"\n"
+	PK.run_text(plaintext,"test.inp")
+	if len(fileseeker(os.getcwd(),pkname))>0:
+		os.remove("test.inp")
+		doneflag=True
+		
+	return doneflag,pkname
+
+def pubchem2info(pubchemfile,atmk=0):
+
+	atomsid=[]
+	atomick=[]
+	bonds1=[]
+	bonds2=[]
+	Cx=[]
+	Cy=[]
+	Cz=[]
+	p_flag=True
+	if pubchemfile.endswith(".sdf"):
+		with open(pubchemfile, 'r')  as insdf:
+			for k_line in insdf:
+				if k_line.endswith("V2000\n"):
+					info=k_line
+					atomsid=range(1,int(info[:3])+1)
+					break
+			for k_line in insdf:
+				if len(k_line.rstrip('\n'))==69:
+					Cx.append(k_line[:10])
+					Cy.append(k_line[10:20])
+					Cz.append(k_line[20:30])
+					atomick.append(k_line[31:32])
+					if len(Cz)==int(info[:3]):break
+			for k_line in insdf:
+				if len(k_line.rstrip('\n'))==21:
+					bonds1.append(int(k_line[:3]))
+					bonds2.append(int(k_line[3:6]))
+					if len(bonds1)==int(info[3:6]):break
+
+	elif pubchemfile.endswith(".xml"):
+		with open(pubchemfile, 'r')  as inxml:
+			for k_line in inxml:
+				if "<" in k_line and ">\n" in k_line:
+					if " "==k_line[0]:k_line=k_line.lstrip(' ')
+					k_line=k_line.lstrip("<").rstrip(">\n")
+					if "</" in k_line:
+						if k_line.startswith("PC-"):k_line=k_line[3:]# PubChem tag??
+						content=k_line.split("</")[0].split('>')
+						if content[0].startswith("Atoms"):atomsid.append(int(content[1]))
+						elif content[0].startswith("Element"):atomick.append(int(content[1]))
+						elif content[0].startswith("Bonds") and "1" in content[0]:bonds1.append(int(content[1]))
+						elif content[0].startswith("Bonds") and "2" in content[0]:bonds2.append(int(content[1]))
+						elif content[0].startswith("Conformer_x"):Cx.append(content[1])
+						elif content[0].startswith("Conformer_y"):Cy.append(content[1])
+						elif content[0].startswith("Conformer_z"):
+							Cz.append(content[1])
+							if len(Cz)==len(Cx):break
+	else: sys.exit('Format file:'+pubchemfile[-3:]+'not suported yet')
+	#print len(bonds1)
+	#print len(bonds2)
+	if atmk: return atomick
+	
+	
+	Mol=Molecule()
+	for at in range(len(atomsid)):
+		Mol.atoms=Atom(Mol,str(atomsid[at]),atomick[at],[Cx[at],Cy[at],Cz[at]])
+		#Mol.atoms[at].atelem=atomick[at]
+		
+		#print Mol.atoms[at].atelem
+		#Mol.atoms[at].xyz=[Cx[at],Cy[at],Cz[at]]
+	#print len(Mol.atoms)
+	#print '\n'
+	print str(len(atomsid))+' Atoms'
+	print str(len(bonds1))+' Bonds'
+	print '\n Topology:\t\t\t  File pdb:'
+	print '-'*10+"\t\t\t "+'-'*11
+	for at in range(len(atomsid)):
+		for bn in range(len(bonds1)):
+			if atomsid[at]==bonds1[bn]:	Mol.atoms[at].bond=Mol.atoms[bonds2[bn]-1]
+	for at in range(len(atomsid)):
+		atyp=Mol.atoms[at].atype
+		while len(atyp)<3:atyp=atyp+' '
+		print ' -> ',Mol.atoms[at].atelem , Mol.atoms[at].bond,' '*(20-len(str(Mol.atoms[at].bond))),atyp,'|',Mol.atoms[at].atxt
+		
+		
+	Mol.calculate_angles()
+	
+	txtpdb="HEADER\nTITLE    Built with DDEXlinker through pubchem2info basic function"
+	txtpdb=txtpdb+"\nREMARK   by Hernan Chavez Thielemann <hchavezthiele@gmail.com>"
+	txtpdb=txtpdb+"\nREMARK   If this doesn't work, use a high-level tool like Jmol to convert xml to pdb"
+	txtpdb=txtpdb+"\nREMARK"
+	
+	for at in range(len(atomsid)):
+		txtpdb=txtpdb+'\n'+Mol.atoms[at].atxt
+		if p_flag and len(Mol.atoms[at].atxt)<80:p_flag=False
+	txtpdb=txtpdb+"\nEND"
+	if '/'in pubchemfile: filename=pubchemfile.split('/')[-1]
+	filename=filename.split('.')[0]+'.pdb'
+	text2file(filename,txtpdb)
+	msg=" File tagged in pdb format created as "+filename
+	print "\n"+"-"*(len(msg)+1)+"\n"+msg+"\n"+"-"*(len(msg)+1)+"\n"
+	return p_flag,filename
+
+''' 	VMD'r	'''
+def run_command(command,fr=0):
+	'''So self explanatory, to let os.system just in one place'''
+	os.system(command)
+
+def text2file(filename,text):
+	'''Make a file called "filename" with the "text" inside'''
+	out_tfile = open(filename,"w")
+	out_tfile.write (text)
+	out_tfile.close()
+
+def pdb2coords(pdbfilein,flag='c'):
+	'''See center and others'''
+	xco=[]
+	yco=[]
+	zco=[]
+	typ=[]
+	with open(pdbfilein, 'r')  as indata:
+			for k_line in indata:
+				if k_line.startswith("ATOM"):
+					einline=k_line.split(' ')
+					while '' in einline: einline.remove('')
+					xco.append(float(k_line[30:38]))
+					yco.append(float(k_line[38:46]))
+					zco.append(float(k_line[46:54]))
+					typ.append(einline[10])
+	maxx=max(xco)
+	minx=min(xco)
+	maxy=max(yco)
+	miny=min(yco)
+	maxz=max(zco)
+	minz=min(zco)
+	
+	lx=maxx- minx
+	ly=maxy- miny
+	lz=maxz- minz
+	
+	cx=str((maxx+minx)/2)
+	cy=str((maxy+ miny)/2)
+	cz=str((maxz+ minz)/2)
+	print'\n'
+	print 'x: '
+	print maxx, minx, lx, (maxx+minx)/2
+	print 'y: '
+	print maxy, miny, ly, (maxy+ miny)/2
+	print 'z: '
+	print maxz, minz,lz, (maxz+ minz)/2
+	if flag=="c":return cx, cy, cz
+	elif flag=="mm": return maxx, minx,maxy, miny,maxz, minz
+	elif flag=="l": return lx,ly,lz
+	elif flag=="f":return cx, cy, cz, maxx, minx,maxy, miny,maxz, minz,lx,ly,lz
+
+def genauxpk(pdbfilein,pdbfileout="2xl.pdb"):
+	''' description here'''
+	cx,cy,cz=pdb2coords(pdbfilein)
+	if pdbfileout=="2xl.pdb":
+		if '/' in pdbfilein:pdbfileout= pdbfilein.split("/")[-1].split(".")[0]+"_"+pdbfileout
+		else: pdbfileout= pdbfilein.split(".")[0]+"_"+pdbfileout
+	text="\ntolerance 1.9\n\nfiletype pdb\noutput "+pdbfileout+"\n\n"
+	text=text+"\nstructure "+pdbfilein+"\n  number 1\n  fixed "+cx+" "+cy+" "+cz+" 0. 0. 0.\nend structure"
+	text=text+"\n\nstructure ./.lib/aux.pdb\n  number 1\n  fixed -73. -73. -73. 0. 0. 0.\nend structure"
+	text=text+"\n\nnloop 20000\n"
+	text2file("aux.inp",text)
+	return pdbfileout
+
+def gendatainvmd(pdbfile,sndpdbfile=None):
+	''' Generates two usefull, but not fully usefull data files'''
+	epoM = [['' for x in range(4)] for y in range(20)]
+	
+	''' "Old" force field '''
+	
+	epoM[0]=[ 'C4 ','C4 ','12.0110','-0.1590']
+	epoM[1]=[ 'C44','C44','12.0110', '0.0000']
+	epoM[2]=[ 'C43','C43','12.0110', '0.1070']
+	epoM[3]=[ 'C4o','C4o','12.0110', '0.0540']
+	
+	epoM[4]=[ 'C3a','C3a','12.0110','-0.1270']
+	epoM[5]=[ 'C30','C3a','12.0110', '0.0000']
+	epoM[6]=[ 'C3o','C3a','12.0110', '0.0420']
+	
+	epoM[7]=[ 'O2 ','O2 ','15.9990','-0.2020']
+	epoM[8]=[ 'O2e','O2e','15.9990','-0.3200']
+	epoM[9]=[ 'H1 ','H1 ','1.00800', '0.0530']
+	epoM[10]=['H1a','H1 ','1.00800', '0.1270']
+	# Amino atoms
+	epoM[11]=['C4a','C4 ','12.0110', '0.0827']
+	epoM[12]=['Na1','NaR','14.0070','-0.7321']
+	epoM[13]=['Na2','NaR','14.0070','-0.8981']
+	epoM[14]=['H1n','H1n','1.00800', '0.3547']
+	epoM[15]=['H12','H1 ','1.00800', '0.0530'] # same as epo C
+	#Crosslik products 
+	epoM[16]=['N3 ','Na ','14.0070','-0.5661']
+	epoM[17]=['O2h','O2h','15.9990','-0.5700']
+	epoM[18]=['H1o','H1o','1.00800', '0.4100']
+	# SWCNT kinds of carbons
+	epoM[19]=['C  ','WGC','12.0110', '0.0000']
+	
+
+	vtxt="#!/usr/bin/tclsh\n\npackage require topotools\npackage require pbctools\n\nset File "+pdbfile
+	vtxt=vtxt+"\nmol new $File autobonds yes waitfor all\n\n"
+	for y in range(len(epoM)):
+		vtxt=vtxt+"\n\nset sel [atomselect top {name "+epoM[y][0]+"}]\n$sel set type "+epoM[y][1]
+		vtxt=vtxt+"\n$sel set mass "+epoM[y][2]+"\n$sel set charge "+epoM[y][3]+"\n$sel delete"
+	vtxt=vtxt+"\n\nset mol1 [molinfo top]\ntopo retypebonds\ntopo guessangles\ntopo guessdihedrals\nmol reanalyze top"
+	vtxt=vtxt+"\n\nset sel [atomselect top all]\nset minmax [measure minmax $sel]"
+	vtxt=vtxt+"\nset box [vecscale 1.1 [vecsub [lindex $minmax 1] [lindex $minmax 0]]]\npbc set $box\n$sel delete"
+	if '/'in pdbfile:nfilename="data."+pdbfile.split('/')[-1].split('.')[0]
+	else:nfilename="data."+pdbfile.split('.')[0]
+	vtxt=vtxt+"\ntopo writelammpsdata "+nfilename+" full"
+	vtxt=vtxt+"\n\nset sel [atomselect top all]\nset totq [measure sumweights $sel weight charge]\n$sel delete"
+	vtxt=vtxt+'\nif {[expr {abs($totq)}] > 0.0005} {\n    vmdcon -warning "Total system not neutral: $totq"\n}'
+	
+	if sndpdbfile<>None:
+		vtxt=vtxt+"\nmol delete mol1" #\nsource dde2xl_2.tcl"
+		
+		vtxt2="#!/usr/bin/tclsh\n\nmol delete all\nset File2 "+sndpdbfile+"\nmol new $File2 autobonds yes waitfor all\n\n"
+		for y in range(len(epoM)):
+			vtxt2=vtxt2+"\n\nset sel [atomselect top {name "+epoM[y][0]+"}]\n$sel set type "+epoM[y][1]
+			vtxt2=vtxt2+"\n$sel set mass "+epoM[y][2]+"\n$sel set charge "+epoM[y][3]+"\n$sel delete"
+			
+		vtxt2=vtxt2+"\nset mol2 [molinfo top]\t\ntopo retypebonds\ntopo guessangles\ntopo guessdihedrals\nmol reanalyze top"
+		vtxt2=vtxt2+"\nset sel [atomselect top all]\nset minmax [measure minmax $sel]"
+		vtxt2=vtxt2+"\nset box [vecscale 1.1 [vecsub [lindex $minmax 1] [lindex $minmax 0]]]\npbc set $box\n$sel delete"
+		
+		if '/'in sndpdbfile:nfilename2="data."+sndpdbfile.split('/')[-1].split('.')[0]
+		else:nfilename2="data."+sndpdbfile.split('.')[0]
+		vtxt2=vtxt2+"\ntopo writelammpsdata "+nfilename2+" full"
+		vtxt2=vtxt2+"\n\nset sel [atomselect top all]\nset totq [measure sumweights $sel weight charge]\n$sel delete"
+		vtxt2=vtxt2+'\nif {[expr {abs($totq)}] > 0.0005} {\n    vmdcon -warning "Total system not neutral: $totq"\n}'
+		nfilename=[nfilename,nfilename2]
+		#text2file("dde2xl_2.tcl",vtxt2)
+		vtxt=vtxt+vtxt2
+		
+		
+	vtxt=vtxt+"\n\n\nquit"
+	text2file("dde2xl.tcl",vtxt)
+	run_command("vmd -dispdev text -e dde2xl.tcl")
+	
+	os.remove("dde2xl.tcl")
+	#if sndpdbfile<>None:os.remove("dde2xl_2.tcl")
+	
+	return nfilename;
+
+def reorderpdb(file2reorder,CNT_f=False):
+	''' reorder the cnt in a file '''
+	with open(file2reorder, 'r') as inpdb:
+		for i_line in inpdb:
+			if i_line[17:20]=="CNT" or "CNT" in i_line:
+				CNT_f=True
+				break
+	if CNT_f:
+		with open(file2reorder, 'r') as inpdb:
+			CNTline=[]
+			Filelines="TITLE    \nREMARK\t    Reordered pdb file\n"
+			i_fl=0
+			for i_line in inpdb:
+				if i_line.startswith("ATOM") and i_line[17:20]=="CNT":
+					CNTline.append(i_line[11:])
+				elif i_line.startswith("ATOM"):
+					i_fl=i_fl+1
+					fn=" "*(5-len(str(i_fl)))+str(i_fl)
+					Filelines=Filelines+"ATOM  "+fn+i_line[11:]
+			#CNTline=list(iter(CNTline.splitlines()))------------------------------------------
+			for jl in range(len(CNTline)):
+				i_fl=i_fl+1
+				fn=" "*(5-len(str(i_fl)))+str(i_fl)
+				Filelines=Filelines+"ATOM  "+fn+CNTline[jl]
+			Filelines=Filelines+"END"
+			if '/'in file2reorder: newfilename=file2reorder.split('/')[-1].split('.')[0]+"re.pdb"
+			else:newfilename=file2reorder.split('.')[0]+"re.pdb"
+			text2file(newfilename,Filelines)
+			
+	else: newfilename=file2reorder
+	return newfilename,CNT_f
+
+def pk_pdb2data(filep=""):
+	''' takes a pdb '''
+	files=fileseeker(os.getcwd(),'pdb')
+	if "./.lib/aux.pdb" not in files: sys.exit("Error!! --- File aux.pdb not found ---")
+	if filep=="":
+		for fi in range(len(files)):
+			if '/' in files[fi]:
+				files[fi]=files[fi].split('/')[-1]
+			if ".pdb" in files[fi] and files[fi]<>"./.lib/aux.pdb":
+				filep=files[fi]
+				print "\nThe format is carried out with : "+filep
+				break
+	if filep=="": sys.exit("Error!! --- File pdb not found ---")
+			
+	'''run packmol'''
+	CNT_f=False
+	filep,CNT_f=reorderpdb(filep)
+	pdbfilexl=genauxpk(filep)
+	run_command("./.lib/packmol < aux.inp")
+	os.remove("aux.inp")
+	'''run vmd with fi'''
+	data1,data2=gendatainvmd(filep,pdbfilexl)
+	#data2=gendatainvmd()
+	
+	if CNT_f: os.remove(filep)
+	os.remove(pdbfilexl)
+	
+	with open("./.lib/ddeff.ff", 'r') as fffile, open(data1, 'r') as dat1, open(data2, 'r') as dat2:
+		datatxt=""
+		# for for header
+		for j_line in fffile:
+			if j_line.startswith("#"):
+				datatxt=datatxt+j_line
+				if "Header" in j_line:
+					datatxt=datatxt+"\n"
+					break
+		flag1=True
+		next(dat1)
+		
+		# for for topo numbers
+		for k_line in dat1: 
+			if flag1:
+				datatxt=datatxt+k_line
+				if k_line.endswith("dihedrals\n"):
+					dihenum=k_line.lstrip(" ").split(" ")[0]
+					#datatxt=datatxt+"\n"
+					flag1=False
+					break
+				elif k_line.endswith("angles\n"):anglnum=k_line.lstrip(" ").split(" ")[0]
+				elif k_line.endswith("bonds\n"):bondnum=k_line.lstrip(" ").split(" ")[0]
+				elif k_line.endswith("atoms\n"):
+					atomnum=k_line.lstrip(" ").split(" ")[0]
+					print atomnum
+			elif k_line.endswith("improper types\n"):flag1=True
+				
+		# for for topo numbers 2 from forcefield
+		for j_line in fffile:
+			datatxt=datatxt+j_line
+			if j_line.endswith("dihedral types\n"):break
+		datatxt=datatxt+"\nCOOR\n"
+		maxx, minx, maxy, miny, maxz, minz=data2coords(data1,"mm")
+		datatxt=datatxt+'\n '+str(minx-0.71)+' '+str(maxx+0.71)+" xlo xhi\n "+str(miny-0.71)+' '+str(maxy+0.71)
+		datatxt=datatxt+" ylo yhi\n "+str(minz-0.71)+' '+str(maxz+0.71)+" zlo zhi\n"
+		for j_line in fffile:
+			if not j_line.startswith("#"):
+				datatxt=datatxt+j_line
+			
+		datatxt=datatxt+"\n Atoms\n"
+		
+		for l_line in dat2:
+			if flag1:
+				datatxt=datatxt+l_line
+				if l_line.split(" ")[0]==atomnum:
+					flag1=False
+					break
+			elif l_line.startswith(" Atoms"):flag1=True
+				
+		datatxt=datatxt+"\n Bonds\n\n"
+		for l_line in dat2:
+			if flag1:
+				
+				auxcon=l_line.split(" ")
+				if auxcon[0]==bondnum or auxcon[1]=='20':
+					if auxcon[1]=='20': bondnum=str(int(auxcon[0])-1)
+					else:datatxt=datatxt+l_line
+					flag1=False
+					break
+				datatxt=datatxt+l_line
+			elif l_line.startswith(" Bonds"):
+				dat2.next()
+				flag1=True
+				
+				
+		datatxt=datatxt+"\n Angles\n\n"
+		for l_line in dat2:
+			if flag1:
+				
+				auxcon=l_line.split(" ")
+				if auxcon[0]==anglnum or auxcon[1]=='40':
+					if auxcon[1]=='40':anglnum=str(int(auxcon[0])-1)
+					else:datatxt=datatxt+l_line
+					flag1=False
+					break
+				datatxt=datatxt+l_line
+			elif l_line.startswith(" Angles"):
+				dat2.next()
+				flag1=True
+				
+				
+		datatxt=datatxt+"\n Dihedrals\n\n"
+		for l_line in dat2:
+			if flag1:
+				
+				auxcon=l_line.split(" ")
+				if auxcon[0]==dihenum or auxcon[1]=='59':
+					if auxcon[1]=='59':dihenum=str(int(auxcon[0])-1)
+					else:datatxt=datatxt+l_line
+					flag1=False
+					break
+				datatxt=datatxt+l_line
+			elif l_line.startswith(" Dihedrals"):
+				dat2.next()
+				flag1=True
+				
+	text2file(data2+"v",datatxt)
+	with open(data2+"v", 'r') as rfile:
+		datatxt=""
+		
+		for m_line in rfile:
+			datatxt=datatxt+m_line
+			if "atoms" in m_line:break
+		datatxt=datatxt+' '+bondnum+' bonds\n'+' '+anglnum+' angles\n'+' '+dihenum+' dihedrals\n\n'
+		for m_line in rfile:
+			if m_line.endswith("dihedrals\n"):break
+		
+		for m_line in rfile:
+			if "COOR\n" in m_line:break
+			datatxt=datatxt+m_line
+		maxx, minx, maxy, miny, maxz, minz=data2coords(data2+"v","mm")
+		datatxt=datatxt+'\n '+str(minx-0.71)+' '+str(maxx+0.71)+" xlo xhi\n "+str(miny-0.71)+' '+str(maxy+0.71)
+		datatxt=datatxt+" ylo yhi\n "+str(minz-0.71)+' '+str(maxz+0.71)+" zlo zhi\n"
+		Rflag=False
+		
+		for m_line in rfile:
+			if Rflag: datatxt=datatxt+m_line
+			elif m_line.endswith('zlo zhi\n'):Rflag=True
+				
+				
+	text2file(data2+"v",datatxt)
+	
+	
+	
+	
+	if len(fileseeker(os.getcwd(),data2+"v"))>0:
+		os.remove(data1)
+		os.remove(data2)
+		flag1=True
+	return flag1
+
+def data2coords(datafilein,flag='c',p=0):
+	'''See center and others'''
+	xco=[]
+	yco=[]
+	zco=[]
+	#typ=[]
+	Atm=False
+	boxdim=''
+	with open(datafilein, 'r')  as indata:
+			for k_line in indata:
+				if not k_line.startswith("#"):
+					k_line=k_line.lstrip(' ')
+					if len(k_line.split(' '))>1 and 'atoms' in k_line.split(' ')[1]: atomsnum=int(k_line.split(' ')[0])
+					elif k_line.endswith("xlo xhi\n"):boxdim=boxdim+k_line
+					elif k_line.endswith("ylo yhi\n"):boxdim=boxdim+k_line
+					elif k_line.endswith("zlo zhi\n"):boxdim=boxdim+k_line
+						
+					if k_line.lstrip(' ').startswith("Atoms"):	break
+			for k_line in indata:
+					einline=k_line.split(' ')
+					#print k_line
+					if Atm or len(einline)>2:
+						Atm=True
+						while '' in einline: einline.remove('')
+						xco.append(float(einline[4]))
+						yco.append(float(einline[5]))
+						zco.append(float(einline[6]))
+						#typ.append(einline[10])
+					if len(xco)==atomsnum:
+						#print k_line
+						break
+					if Atm and len(einline)<2:sys.exit("Warning!! ---- Data file corrupted -----")
+	maxx=max(xco)
+	minx=min(xco)
+	maxy=max(yco)
+	miny=min(yco)
+	maxz=max(zco)
+	minz=min(zco)
+	
+	lx=maxx- minx
+	ly=maxy- miny
+	lz=maxz- minz
+	
+	cx=str((maxx+minx)/2)
+	cy=str((maxy+ miny)/2)
+	cz=str((maxz+ minz)/2)
+	if p:
+		print'\nBox dimension analysis\n\nDeclared: \n'+boxdim+'\n x: '
+		print ("From coordinates:\nmax {:.4f} , min {:.4f} , len {:.4f} , center {:.4f}").format(maxx, minx, lx, (maxx+minx)/2)
+		print ("y: \nmax {:.4f} , min {:.4f} , len {:.4f} , center {:.4f}").format(maxy, miny, ly, (maxy+ miny)/2)
+		print ("z: \nmax {:.4f} , min {:.4f} , len {:.4f} , center {:.4f}\n\n").format(maxz, minz,lz, (maxz+ minz)/2)
+		
+
+		print '\n A good box could be:\n'
+		print(" {:.5f} {:.5f}  xlo xhi").format(minx-0.71,maxx+0.71)
+		print (" {:.5f} {:.5f}  ylo yhi").format(miny-0.71,maxy+0.71)
+		print (" {:.5f} {:.5f}  zlo zhi").format(minz-0.71,maxz+0.71)
+		print'\n'
+		
+
+	if flag=="c":return cx, cy, cz
+	elif flag=="mm": return maxx, minx, maxy, miny, maxz, minz
+	elif flag=="l": return lx, ly, lz
+	elif flag=="f":return cx, cy, cz, maxx, minx, maxy, miny, maxz, minz, lx, ly, lz
+	elif flag=="n":return True
+
+def fileseeker(path=os.getcwd(),word='data'):
+	'''seek data & destroy, returns a list of posible files, filtered by "word" criterion'''
+	list_of_files=[]
+	if path==os.getcwd(): DIR='.'
+	else: DIR=path
+	for (root, folder, filenames) in os.walk(DIR, topdown=True):
+		for name in filenames:
+			list_of_files.append(os.path.join(root, name))
+	files=[]
+	for fs in range(len(list_of_files)):
+		# Could implement "while not" and use the same list_of_files with remove(list_of_files[fs])
+		if '/' in list_of_files[fs] and word in list_of_files[fs].split('/')[-1]:
+			files.append(list_of_files[fs])
+	if files==[]:sys.exit("Error!! --- no file(s) found with "+word+" criterion---")
+	return files;
+
+def whichfile(list_of_files,word="."):
+	'''pic a list of files, ask and returns a selected file'''
+	if list_of_files==[]:sys.exit("Error!! --- no file(s) in list ---")
+	elif list_of_files!=[]:
+		print("\nThese are the available files:")
+		files2print=[]
+		index=0
+		for fs in range(len(list_of_files)):
+			if len(list_of_files[fs].split('.', 1))>1 and word in list_of_files[fs]:
+				index+=1
+				files2print.append(list_of_files[fs])
+				print("		# {}.- {}").format(index, list_of_files[fs])
+	# once showed - ask which one is needed to analyze
+	Selfile= raw_input("Which file do you want to open? (number of) #")
+	if Selfile=='':
+		if 'lgct.txt' in files2print: Filename='lgct.txt'# Legacy parameter
+		else: Filename=files2print[-1]
+	elif int(Selfile)>len(files2print):
+		print "\nThe number entered is out of range, please try again.."
+		Filename=whichfile(list_of_files)
+	else: Filename=files2print[int(Selfile)-1]
+	return Filename;
+	
+	# once showed - ask which one is needed to analyze
+	Selfile= raw_input("Which file do you want to analyze? (number of) #")
+	if Selfile=='':
+		if 'lgct.txt' in files2print: Filename='lgct.txt'
+		else: Filename=files2print[-1]
+	else: Filename=files2print[int(Selfile)-1]
+	return Filename;
+
+def fakestop(mult=1, prin=True, dot=True):
+	''' wasting time (ammazzando il tempo!!)'''
+	mult=abs(mult)
+	if prin: sys.stdout.write('Counting ten dots: ')
+	sys.stdout.flush()
+	fakenum=1
+	while fakenum<int(200000000*mult):
+		if dot*(fakenum%(19000000*mult)==0):
+			sys.stdout.write('.')
+			sys.stdout.flush()
+		fakenum=fakenum+1
+	if prin: sys.stdout.write('100% time ')
+	fakenum=0
+	while fakenum<int(30000000*mult):
+		if prin*(fakenum%(10000000*mult)==0):
+			sys.stdout.write('.')
+			sys.stdout.flush()
+		fakenum=fakenum+1
+	if prin: sys.stdout.write(' wasted	;)')
+	sys.stdout.flush()
+	fakenum=0
+	while fakenum<int(30000000*mult):fakenum=fakenum+1
+	if prin: print("\n")
+
+def printhelp():
+	''' Neat help '''
+	print "\n --	Help desk	--\n "
+	with open("mix2data", 'r')  as indata:
+		for j_line in indata:
+			if j_line.startswith("#h"):
+				chars=[]
+				sline=""
+				auxlin=j_line.lstrip('#h').rstrip('\n')
+				for char in auxlin:
+					if char=="	":char="  "
+					chars.append(char)
+				for lt in chars: sline=sline+lt
+				print sline
+	return True
+
+def generateinputfile(): #-------------------------------- unddev
+	'''Created to help inputting data thru xlinkpars file instead GUI'''
+	print "\nInput file generator"
+	Texto="#	By Hernan Chavez Thielemann\n#	herchavezt@gmail.com\n#\n"
+	Texto=Texto+"\n#	---		----------	----------		--------------------------------------"
+	Texto=Texto+"\n"
+	rt=0
+	titls=["Epoxy","File to Crosslink"]
+	for sf in range(len(requestedinputs)):
+		if "--" in requestedinputs[sf]:
+			Texto=Texto+"\n"+'-'*47+"\n\n"+titls[rt]+"\n"
+			rt+=1
+		elif "-f1" in requestedins[sf]:
+			print 'f1'
+			
+		elif "-f1" in requestedins[sf]:
+			print 'f2'
+
+		else:
+			raux=requestedinputs[sf]
+			if len(raux)<29:raux=raux+' '*(29-len(raux))
+			Texto=Texto+"\n"+raux+"	=	"+defvalues[sf-rt]
+			
+			
+	Texto=Texto+"\n"+'-'*47+"\n\n"+titls[rt]+"\n\nFile name\t\t\t=\t/home/path/downstream/data.2crosslink"
+	
+	text2file("mixparams.txt",Texto)
+	print "\n"+'-'*47+"\n Parameters file created as 'mixparams.txt'\n"+'-'*47+"\n"
+	return True
+
+def dfm_pars2list(file):
+	'''Created to help inputting data without GUI'''
+	XLpars=[]
+	with open(file, 'r')  as inpars:
+		for j_line in inpars:
+			if len(j_line)>2 and not j_line.startswith("#"):
+				line_v=j_line.split("=")
+				if len(line_v)>1:
+					value=line_v[1].lstrip('\t').lstrip(' ').rstrip(' ').rstrip('\n')
+					XLpars.append(value)
+	return XLpars
+
+def pr_wr(text):
+	'''print and write into dfm_DBG'''
+	print text
+	dfm_DBG.write(text)
+
+def dfm_version():
+	'''Global dfm version'''
+	global dfm_ver
+	with open("mix2data", 'r')  as indata:
+		for j_line in indata:
+			if j_line.startswith("#hv"):
+				dfm_ver=j_line[4:]
+				break
+				
+
+#------------------------------------------------------
+#///////////////	Main		  /////////////
+#------------------------------------------------------
+
+if __name__ == "__main__":
+	'''Makes data file to simulate over lammps'''
+	dfm_version()
+	print "\n"+dfm_ver
+	
+	RQ1=["--","-f1","Quantity	","--","-f2","Quantity	","--"]
+	RQ2=["Density","Cubic shape side","Box dimension X","Box dimension Y","Box dimension Z"]
+	RQ3=["--","Center X value","Center Y value","Center Z value"]
+	requestedins = RQ1+RQ2+RQ3#requestedins
+	units=["[#]","[#]","[g/cc]"]
+	units=units+["["+u'\u00c5'+"]" for x in range(len(RQ2)+2)]
+	defvals=["80","32","1.00","25","75.997","75.997","75.997","0.68","0.68","0.68"]
+	
+	cksel_init_=[1,1,1,0,0,0,0]
+	xlinkflag=False
+	arguments=sys.argv
+	
+	if len(arguments)>1:
+		if arguments[1]=="-h": niceness=printhelp()
+		elif arguments[1]=="-g": niceness=generateinputfile()
+		elif arguments[1]=="-t":pdb2coords(whichfile(fileseeker(os.getcwd(),'.pdb')))
+		elif arguments[1]=="-bd" or arguments[1]=="-data2coords":niceness=data2coords(whichfile(fileseeker()),'n',1)
+		elif arguments[1]=="-re":reorderpdb(whichfile(fileseeker(os.getcwd(),'.pdb')))
+		elif arguments[1]=="-pch":pubchem2info(whichfile(fileseeker(os.getcwd(),'.xml')))
+		elif arguments[1]=="-pk": 
+			files_r = fileseeker(os.getcwd(),'_r.')
+			files_h = fileseeker(os.getcwd(),'_h.')
+			MasterWin = Tk()
+			niceness=pkguia()
+			MasterWin.destroy()
+		elif arguments[1]=="-v": niceness=pk_pdb2data(whichfile(fileseeker(os.getcwd(),'.pdb')))
+		else:
+			dfm_DBG=open("dfm_debugger.txt","w",0)	
+			niceness,_,_=checkinfoandpack(dfm_pars2list(sys.argv[1]), requestedins, None,0)
+			
+	else:
+		files_r=fileseeker(os.getcwd(),'_r.')
+		files_h=fileseeker(os.getcwd(),'_h.')
+		MasterWin = Tk()
+		dfm_DBG=open("dfm_debugger.txt","w",0)	
+		niceness,pkfile=pkguia()
+		MasterWin.destroy()
+		if niceness:
+			pk_pdb2data(pkfile)
+			
+		
+		
+	if xlinkflag:dfm_DBG.close()
+	
+	if niceness:
+		print "\n"+dfm_ver
+		print 'Exiting nicely\n'
+	else: 
+		print "\n"+dfm_ver
+		print 'Exiting with lack of niceness\n'
+
+
