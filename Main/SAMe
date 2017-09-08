@@ -57,7 +57,7 @@ class MainGUI(Tk.Frame):
 		
 		self.c_rea_flg=0
 		self._ckvar_rea=[]
-		self.logo = Tk.PhotoImage(file="./.l/same.gif")
+		self.logo = Tk.PhotoImage(file="./same.gif")
 		self.createmenubar()
 		self.createWidgets()
 		
