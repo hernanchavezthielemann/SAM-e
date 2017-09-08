@@ -1,0 +1,188 @@
+#!/usr/bin/python
+#h
+#h		<	Software for Atomistic Modelling of epoxy-nano-composites		>
+#hv			SAM-e version 1.0 (06 Sep 2017)
+#h
+#h	By Hernan Chavez Thielemann
+#h	herchavezt@gmail.com
+#h	
+#h	latest version must be in Main directory
+#
+#	Ver		 Filename	  Date			Coments
+#	---		----------	----------	----------------------------------------
+#	1.0 	SAMe		6/09/2017	First main prompt
+#h
+#h	**Note:		GUI = Graphical User Interface
+#h
+#h		End Help
+#------------------------------------------------------
+#///	Packages and globals definitions are here   ///
+#------------------------------------------------------
+import Tkinter as Tk
+import tkFont
+
+
+import os
+import sys	
+import time
+
+#------------------------------------------------------
+#///////	Class definitions coming up			///////
+#------------------------------------------------------
+
+class MainGUI(Tk.Frame):
+	'''
+		Main
+		Graphical
+		User
+		Interface
+	'''
+	
+	def __init__(self, master=None):
+		Tk.Frame.__init__(self, master)
+		self.configure_gui()
+		self.parent = master
+		self.pack()
+		
+		#.master
+		
+		self.Times12 = tkFont.Font(family="Times", size=12)
+		self.Times16 = tkFont.Font(family="Times", size=16)
+		self.Times18 = tkFont.Font(family="Times", size=18)
+		
+		self._File=""
+		self._Pars=[]
+		
+		self._ckflag=False
+		
+		self.c_rea_flg=0
+		self._ckvar_rea=[]
+		self.logo = Tk.PhotoImage(file="./.l/same.gif")
+		self.createmenubar()
+		self.createWidgets()
+		
+	def configure_gui(self):
+		self.master.title("	Software for Atomistic Modelling of epoxy-nano-composites")
+		self.master.geometry("650x198")
+		#self.master.resizable(False, False)
+		
+		
+	def createmenubar(self):
+		
+		menubaro = Tk.Menu(self.parent) # menubar "object"
+		self.parent.config(menu=menubaro)
+		
+		# Create a menu button labeled "File" that brings up a menu
+		filemenu = Tk.Menu(menubaro)
+		edimenu = Tk.Menu(menubaro)
+		cntmenu = Tk.Menu(menubaro)
+		mixmenu = Tk.Menu(menubaro)
+		xlkmenu = Tk.Menu(menubaro)
+		tccmenu = Tk.Menu(menubaro)
+		tgcmenu = Tk.Menu(menubaro)
+		ymomenu = Tk.Menu(menubaro)
+		
+		# Create cascades in menus
+		menubaro.add_cascade(label='File', menu=filemenu)
+		menubaro.add_cascade(label='Edit',      menu=edimenu)
+		menubaro.add_cascade(label='CNT',       menu=cntmenu)
+		menubaro.add_cascade(label='Mixer',     menu=mixmenu)
+		menubaro.add_cascade(label='Crosslink', menu=xlkmenu)
+		menubaro.add_cascade(label='TC calculator', menu=tccmenu)
+		menubaro.add_cascade(label='Tg calculator', menu=tgcmenu)
+		menubaro.add_cascade(label='E calculator', menu=ymomenu)
+	
+		# Create entries in the "File" menu
+		# simulated command functions that we want to invoke from our menus
+		def doPrint(): print 'doPrint'
+		def doSave(): print 'doSave'
+		filemenu.add_command(label='Print', command=doPrint)
+		filemenu.add_command(label='Save', command=doSave)
+		filemenu.add_separator(  )
+		filemenu.add_command(label='Quit', command=sys.exit)
+		
+		# Create entries in the "Crosslink" menu
+		# simulated command functions that we want to invoke from our menus
+		def launchXL():
+			print 'Launching XL\n'
+			os.system("../5_xl/xlinker")
+			
+			
+			
+		def Checkdata(): print 'Check'
+		def Indata(): print 'Input data'
+		xlkmenu.add_command(label='Crosslinker', command=launchXL)
+		xlkmenu.add_command(label='Check data file', command=Checkdata)
+		xlkmenu.add_command(label='Create input template-file', command=Indata)
+		
+	def createWidgets(self):
+		''' Self explanatory'''
+
+		
+		# first blank header row
+		
+		row = Tk.Frame(self,bg = "white")
+		TEXT1=""
+		Tk.Label(row,bg = "white", text=TEXT1, anchor='w').pack(side=Tk.LEFT, padx=2, pady=5)
+		row.pack(side=Tk.TOP, fill="x", padx=1)
+		
+		row = Tk.Frame(self,bg = "white")
+		Tk.Label(row,bg = "white", image=self.logo).pack(side=Tk.LEFT, padx=25)
+		
+		expla = """At present, only the modeling process of epoxy\nnano-composites materials based on single wall\ncarbon nano tubes in LAMMPS (MD) environment\nis posible. This process considers from the\ninitial liquid mixing to the final crosslinking."""
+		
+		Tk.Label(row,bg = "white", justify=Tk.LEFT, padx = 15, text=expla).pack(side=Tk.RIGHT)
+		row.pack(side="top", fill=Tk.X, padx=1)
+		
+		row = Tk.Frame(self,bg = "white")
+		TEXT1=""
+		Tk.Label(row,bg = "white", text=TEXT1, anchor='w').pack(side=Tk.LEFT, padx=2, pady=4)
+		row.pack(side=Tk.TOP, fill="x", padx=1)
+		
+		# Another row to clean
+		row = Tk.Frame(self)
+		Tk.Label(row, text="2017 by Hernan Chavez Thielemann",
+				 fg = "Steelblue3",
+				 font = "Times 14").pack()
+		Tk.Label(row, 
+				 text="Version 1.0 free",
+				 fg = "Steelblue2",
+				 font = "Verdana 10 bold").pack()
+		Tk.Label(row, 
+				 text="hchavezthiele@gmail.com",
+				 fg = "Steelblue3",
+				 font = "Verdana 10").pack()
+		row.pack(side="bottom", fill=Tk.X, padx=5)
+
+		# Just a line
+		row = Tk.Frame(self)
+		Tk.Frame(row,height=2, bd=1, relief="sunken").pack(fill="x", padx=1, pady=0)
+		row.pack(side="bottom", fill=Tk.X, padx=0)	
+
+def SAMe_version():
+	'''Global version'''
+	global same_ver
+	with open("SAMe", 'r')  as indata:
+		for j_line in indata:
+			if j_line.startswith("#hv"):
+				same_ver=j_line[4:]
+				break
+	print "\n"+same_ver
+				
+				
+#------------------------------------------------------
+#///////////////	Main		  /////////////
+#------------------------------------------------------
+
+if __name__ == "__main__":
+
+	'''Makes data file to simulate over lammps'''
+	SAMe_version()
+	
+	MasterW = Tk.Tk()
+	#createmenubar(MasterW)
+
+	SAM_prompt=MainGUI(MasterW).pack(side="top", fill="both", expand=True)
+	#SAM_prompt.mainloop()
+	MasterW.mainloop()
+	MasterW.destroy()
