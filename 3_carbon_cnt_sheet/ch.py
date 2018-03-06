@@ -3,7 +3,7 @@
 #h        <    Carbon handler        >
 #h
 #hv            
-__version__ = 'ch version 1.0 (20 Jun 2017)'.split()[2]
+__version__ = 'ch version 1.1 (06 Feb 2018)'.split()[2]
 #h    -------------    Sorting , checking and crosslinking     ----------------
 #h
 #h    By Hernan Chavez Thielemann
@@ -13,7 +13,7 @@ __author__ = 'Hernan Chavez Thielemann <hchavezthiele at gmail dot com>'
 #
 #    Ver    Filename   Date            Coments
 #    ---    --------  ----------    ----------------------------------------
-#    1.1     ch        06/02/2017
+#    1.1     ch        06/02/2018
 #    1.0     ch        20/06/2017    
 #
 __help__ = '''
