@@ -10,7 +10,7 @@ __author__ = 'Hernan Chavez Thielemann <hchavezthiele at gmail dot com>'
 #    ver    1.1        24 01 2018
 
 #    Note:    if the file that you want to analyze is upstream from your current working directory (cwd)
-#        just use the option (3)    putting the hole path to your data file.
+#        just use the option (3)    putting the whole path to your data file.
 
 from os import getcwd, path, walk
 from os.path import join
