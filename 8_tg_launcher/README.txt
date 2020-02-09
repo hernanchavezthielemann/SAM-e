@@ -1,3 +1,0 @@
-
-Glass Transition Temperature Calculator
-
